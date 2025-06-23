@@ -1,0 +1,6 @@
+.firebaserc
+.firebase/
+node_modules/
+idea.txt
+.cursor/
+.idea/

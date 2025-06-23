@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Demo: Multi-Agent Call Center</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --airline-theme: #005A9C;
+            --insurance-theme: #c0392b;
+            --fintech-theme: #16a085;
+            --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --panel-bg: white;
+            --text-color: #333;
+            --animation-duration: 0.8s;
+            --animation-delay: 0.2s;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background-gradient);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        .header { 
+            text-align: center; 
+            color: var(--secondary-color); 
+            margin-bottom: 30px; 
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .main-layout { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+            max-width: 1700px; 
+            margin: 0 auto; 
+        }
+
+        .panel { 
+            background: var(--panel-bg); 
+            border-radius: 20px; 
+            padding: 30px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 75vh;
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .panel-title { 
+            font-size: 1.6rem; 
+            margin-bottom: 25px; 
+            border-bottom: 3px solid #ecf0f1; 
+            padding-bottom: 15px; 
+            color: var(--secondary-color);
+            position: relative;
+        }
+
+        .panel-title::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background: var(--primary-color);
+            transition: width 0.6s ease;
+        }
+
+        .panel:hover .panel-title::after {
+            width: 100%;
+        }
+
+        /* Agent View Panel */
+        #agent-view-panel { 
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); 
+            color: white; 
+        }
+
+        #agent-view-panel .panel-title { 
+            color: white; 
+            border-bottom-color: #34495e; 
+        }
+
+        #agent-view-panel .panel-title::after {
+            background: #3498db;
+        }
+
+        .agent-ui-section { 
+            background: rgba(52, 73, 94, 0.8); 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .agent-ui-section:hover {
+            background: rgba(52, 73, 94, 0.9);
+            transform: translateX(5px);
+        }
+
+        .agent-ui-section h4 { 
+            margin: 0 0 15px 0; 
+            color: #bdc3c7; 
+            text-transform: uppercase; 
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        #transcript { 
+            font-family: 'Courier New', Courier, monospace; 
+            white-space: pre-wrap; 
+            word-break: break-word; 
+            height: 180px; 
+            overflow-y: auto;
+            line-height: 1.6;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        #transcript .client { color: #e74c3c; font-weight: bold; }
+        #transcript .agent { color: #3498db; font-weight: bold; }
+
+        .cursor { 
+            display: inline-block; 
+            width: 12px; 
+            height: 1.4em; 
+            background-color: white; 
+            animation: blink 1.2s step-end infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink { 
+            50% { opacity: 0; } 
+        }
+
+        #detected-needs ul, #solutions-panel ul { 
+            list-style: none; 
+            padding: 0; 
+            margin: 0; 
+        }
+
+        #detected-needs li, #solutions-panel li { 
+            background: rgba(44, 62, 80, 0.8); 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-bottom: 10px; 
+            opacity: 0; 
+            transform: translateX(-30px) scale(0.9); 
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-left: 4px solid transparent;
+        }
+
+        #detected-needs li.visible, #solutions-panel li.visible { 
+            opacity: 1; 
+            transform: translateX(0) scale(1);
+            border-left-color: #3498db;
+        }
+
+        .solution-button { 
+            color: white; 
+            border: none; 
+            padding: 10px 16px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            font-weight: 500;
+            margin-left: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .solution-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .solution-button.airline { background: linear-gradient(135deg, var(--airline-theme), #007acc); }
+        .solution-button.insurance { background: linear-gradient(135deg, var(--insurance-theme), #e74c3c); }
+        .solution-button.fintech { background: linear-gradient(135deg, var(--fintech-theme), #1abc9c); }
+
+        /* System Process Panel & Dynamic Diagram */
+        #system-explanation { 
+            background: linear-gradient(135deg, #ecf0f1, #d5dbdb); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 25px; 
+            color: #34495e; 
+            transition: all 0.5s ease;
+            border-left: 4px solid #bdc3c7;
+        }
+
+        #dynamic-diagram-container { 
+            flex-grow: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .diagram-grid { 
+            display: grid; 
+            gap: 15px 20px; 
+            align-items: center; 
+            justify-content: center; 
+            width: 100%;
+            max-width: 800px;
+        }
+
+        #dynamic-diagram-container .node, #dynamic-diagram-container .arrow, #dynamic-diagram-container .label { 
+            opacity: 0; 
+            transform: scale(0.5) rotateY(90deg); 
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        #dynamic-diagram-container .node.visible, #dynamic-diagram-container .arrow.visible, #dynamic-diagram-container .label.visible { 
+            opacity: 1; 
+            transform: scale(1) rotateY(0deg);
+        }
+
+        #dynamic-diagram-container .node { 
+            background: linear-gradient(135deg, white, #f8f9fa); 
+            border: 2px solid #ddd; 
+            border-radius: 12px; 
+            padding: 15px 20px; 
+            text-align: center; 
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        #dynamic-diagram-container .node:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+            border-color: var(--primary-color);
+        }
+
+        #dynamic-diagram-container .node.diamond { 
+            transform: rotate(45deg) scale(0.5) rotateY(90deg); 
+            width: 120px; 
+            height: 120px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            border-color: #c44569;
+        }
+
+        #dynamic-diagram-container .node.diamond.visible { 
+            transform: rotate(45deg) scale(1) rotateY(0deg);
+        }
+
+        #dynamic-diagram-container .node.diamond > span { 
+            transform: rotate(-45deg);
+            color: white;
+            font-weight: bold;
+        }
+
+        #dynamic-diagram-container .arrow { 
+            font-size: 2.5em; 
+            color: #666; 
+            text-align: center; 
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        #dynamic-diagram-container .arrow:hover {
+            color: var(--primary-color);
+            transform: scale(1.2);
+        }
+
+        #dynamic-diagram-container .label { 
+            font-size: 12px; 
+            font-style: italic; 
+            text-align: center;
+            color: #666;
+        }
+
+        /* Grid Layouts for different flows */
+        .lr-flow { 
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); 
+            grid-auto-flow: column;
+            max-width: 900px;
+        }
+
+        .td-flow { 
+            grid-template-columns: 1fr; 
+            grid-auto-flow: row; 
+            justify-items: center;
+            max-width: 300px;
+        }
+
+        .td-flow .arrow { 
+            transform: scale(0.5) rotateY(90deg);
+        }
+
+        .td-flow .arrow.visible {
+            transform: scale(1) rotateY(0deg);
+        }
+
+        .td-flow .arrow:hover {
+            transform: scale(1.2);
+        }
+
+        .complex-flow {
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 10px;
+            max-width: 600px;
+        }
+
+        .fork-layout {
+            display: grid;
+            justify-items: center;
+            grid-template-columns: 1fr;
+        }
+        
+        .fork-layout > .parallel-group {
+            grid-column: 1 / -1;
+        }
+
+        .arrow-fork-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-top: -5px;
+            margin-bottom: -5px;
+            min-height: 30px;
+        }
+        
+        .fork-arrow-left, .fork-arrow-right {
+            width: 50%;
+            height: 40px;
+            border-style: solid;
+            border-color: #666;
+            border-width: 0 0 2px 2px;
+            border-bottom-left-radius: 20px;
+            position: relative;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .fork-arrow-right {
+            border-width: 0 2px 2px 0;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 20px;
+        }
+        
+        .fork-arrow-left.visible, .fork-arrow-right.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .fork-arrow-left::after, .fork-arrow-right::after {
+            content: '▼';
+            color: #666;
+            position: absolute;
+            bottom: -10px;
+            left: -6px;
+            font-size: 14px;
+        }
+        
+        .fork-arrow-right::after {
+            left: auto;
+            right: -6px;
+        }
+
+        .parallel-group { 
+            display: flex; 
+            gap: 20px; 
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Controls */
+        .controls { 
+            text-align: center; 
+            margin: 30px 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn, .nav-btn { 
+            background: linear-gradient(135deg, var(--primary-color), #2980b9); 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            font-size: 1rem; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn::before, .nav-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .control-btn:hover::before, .nav-btn:hover::before {
+            left: 100%;
+        }
+
+        .control-btn:hover:not(:disabled), .nav-btn:hover:not(:disabled) { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .control-btn:disabled, .nav-btn:disabled { 
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d); 
+            cursor: not-allowed; 
+            transform: none; 
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+        .control-btn:disabled:hover, .nav-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .control-btn.running {
+            background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+            animation: pulse 2s infinite;
+        }
+
+        .control-btn.running:hover {
+            background: linear-gradient(135deg, #c0392b, #a93226) !important;
+        }
+
+        .control-btn.ready {
+            background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
+        }
+
+        .control-btn.ready:hover {
+            background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), #2980b9);
+        }
+
+        #scenario-selector { 
+            font-size: 1.1rem; 
+            padding: 14px 20px; 
+            border-radius: 12px; 
+            border: 2px solid #bdc3c7;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        #scenario-selector:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        #diagram-definitions { display: none; }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .parallel-group {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .lr-flow {
+                grid-template-columns: 1fr;
+                grid-auto-flow: row;
+            }
+        }
+
+        .fork-arrow-svg-container {
+            width: 100%;
+            max-width: 300px;
+            height: 50px;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin: 5px 0;
+        }
+
+        .fork-arrow-svg-container.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .fork-path {
+            stroke-dasharray: 200;
+            stroke-dashoffset: 200;
+            transition: stroke-dashoffset 1s ease-in-out;
+            marker-end: url(#arrow-head);
+        }
+        
+        .fork-path.visible {
+            stroke-dashoffset: 0;
+        }
+
+        /* Architecture Section Styles */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .architecture-header {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 40px;
+        }
+        
+        .flow-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-left: 5px solid #3498db;
+        }
+        
+        .flow-title {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-story {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-style: italic;
+            color: #34495e;
+        }
+        
+        .mermaid {
+            background: transparent;
+            text-align: center;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .metric {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+
+    <svg width="0" height="0" style="position:absolute;z-index:-1;">
+        <defs>
+            <marker id="arrow-head" viewBox="0 0 10 10" refX="5" refY="5"
+                markerWidth="6" markerHeight="6"
+                orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#666" />
+            </marker>
+        </defs>
+    </svg>
+
+    <div class="header">
+        <h1>🤖 Executive Demo: Multi-Agent Call Center</h1>
+        <p>Advanced AI Architecture for Complex Business Scenarios</p>
+    </div>
+
+    <div class="controls">
+        <select id="scenario-selector">
+            <option value="">-- Select a scenario --</option>
+            <option value="airline">✈️ Airline Operations</option>
+            <option value="insurance">🛡️ Insurance Claims</option>
+            <option value="fintech">💳 Financial Security</option>
+        </select>
+        <button id="start-btn" class="control-btn" disabled>Start Simulation</button>
+        <button id="pause-btn" class="control-btn" disabled>Pause</button>
+        <button id="play-btn" class="control-btn" disabled>Play</button>
+        <button id="reset-btn" class="control-btn" disabled>Restart</button>
+        <button id="prev-btn" class="nav-btn" disabled>← Previous</button>
+        <button id="next-btn" class="nav-btn" disabled>Next →</button>
+    </div>
+
+    <div class="main-layout">
+        <div id="agent-view-panel" class="panel">
+            <h3 class="panel-title">🖥️ Agent Interface (Live View)</h3>
+            <div class="agent-ui-section">
+                <h4>🎤 Call Transcription</h4>
+                <div id="transcript"></div>
+            </div>
+            <div class="agent-ui-section">
+                <h4>🎯 Detected Requirements</h4>
+                <ul id="detected-needs"></ul>
+            </div>
+            <div class="agent-ui-section">
+                <h4>💡 Solutions & Actions</h4>
+                <ul id="solutions-panel"></ul>
+            </div>
+        </div>
+        <div id="system-view-panel" class="panel">
+            <h3 class="panel-title">⚙️ System Process (Background)</h3>
+            <div id="system-explanation">Select a scenario and click "Start Simulation".</div>
+            <div id="dynamic-diagram-container"></div>
+        </div>
+    </div>
+
+    <!-- Architecture Section -->
+    <div id="architecture-section" style="margin-top: 40px;">
+        <div class="container">
+            <div class="architecture-header">
+                <h1>🤖 Multi-Agent Call Center Flows</h1>
+                <p>Step-by-step Visualization Based on User Stories</p>
+            </div>
+    
+            <!-- Flow 1: Automatic Triggering -->
+            <div class="flow-section">
+                <h2 class="flow-title">📞 1. Automatic Triggering</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As an agent, I want the system to activate automatically when I pick up the phone, so I don't waste time.
+                </div>
+                <div class="mermaid">
+flowchart LR
+    A[📞 Incoming Call] --> B{Agent Picks Up?}
+    B -->|Yes| C[🚀 Multi-Agent Trigger]
+    B -->|No| D[📋 Queue]
+    C --> E[✅ System Activated]
+    
+    style A fill:#e1f5fe
+    style C fill:#e8f5e8
+    style E fill:#f1f8e9
+                </div>
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="metric-value">&lt;0.1s</div>
+                        <div class="metric-label">Activation Time</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">100%</div>
+                        <div class="metric-label">Success Rate</div>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">When a customer calls, the system automatically detects when an agent picks up the phone. This instantly triggers the entire multi-agent ecosystem to start working in the background. No manual activation needed - the AI begins analyzing and preparing solutions immediately.</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> Zero delay between call pickup and AI assistance, giving agents immediate support.</p>
+                </div>
+            </div>
+    
+            <!-- Flow 2: Real-time Transcription -->
+            <div class="flow-section">
+                <h2 class="flow-title">🎤 2. Real-time Transcription</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As an agent, I want to see the conversation transcribed in real-time, so I can focus on active listening.
+                </div>
+                <div class="mermaid">
+flowchart TD
+    A[🎵 Audio Stream] --> B[🎤 Transcription Agent]
+    B --> C[📝 Real-time Text]
+    C --> D[📺 Interface Display]
+    C --> E[⏭️ To Requirement Detection]
+    
+    style A fill:#fff3e0
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+    style D fill:#e1f5fe
+                </div>
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="metric-value">95%</div>
+                        <div class="metric-label">Accuracy</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">0.2s</div>
+                        <div class="metric-label">Latency</div>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">Advanced speech-to-text technology converts the customer's voice into text in real-time with only 0.2 seconds delay. The transcription appears instantly on the agent's screen, while simultaneously being sent to the requirement detection system for analysis.</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> Agents can focus on listening and building rapport while the AI processes the conversation content.</p>
+                </div>
+            </div>
+    
+            <!-- Flow 3: Intelligent Requirement Detection -->
+            <div class="flow-section">
+                <h2 class="flow-title">🧠 3. Intelligent Requirement Detection</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As an agent, I want the system to automatically identify customer requirements, so I can anticipate solutions.
+                </div>
+                <div class="mermaid">
+flowchart LR
+    A[📝 Text] --> B[🧠 AI Analysis Agent]
+    B --> C{Requirement Detected?}
+    C -->|Yes| D[🎯 Classification]
+    C -->|No| E[⏳ Continue Listening]
+    D --> F[📋 Add to List]
+    F --> G[🔍 To Research]
+    
+    style B fill:#fff3e0
+    style D fill:#e8f5e8
+    style F fill:#f1f8e9
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">AI continuously analyzes the transcribed text to identify customer needs, problems, and requirements. When it detects a specific need, it automatically classifies it (billing issue, technical problem, account inquiry, etc.) and adds it to a dynamic list that appears on the agent's screen.</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> Requirements are identified and categorized automatically, eliminating the need for agents to manually note down customer needs.</p>
+                </div>
+            </div>
+    
+            <!-- Flow 4: Multi-Agent Research Orchestration -->
+            <div class="flow-section">
+                <h2 class="flow-title">🔍 4. Multi-Agent Research Orchestration</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As a system, I want to intelligently orchestrate research across all databases to optimize performance.
+                </div>
+                <div class="mermaid">
+flowchart TD
+    A[🎯 Identified Requirement] --> B[🔍 Research Coordinator]
+    B --> C[📊 Metadata Consultation]
+    C --> D{Research Type?}
+    D -->|SQL| E[🗃️ SQL Agent]
+    D -->|Vector| F[🔎 Vector Agent]
+    D -->|API| G[🌐 API Agent]
+    
+    style B fill:#e8f5e8
+    style H fill:#f1f8e9
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">The Research Coordinator acts as the brain of the system. It first consults metadata from all available databases to understand what information is available. Then, based on the type of requirement detected, it intelligently selects and launches the appropriate specialized agents (SQL for structured data, Vector for semantic search, API for external services).</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> Smart orchestration ensures the right agents are used for the right type of data, optimizing both speed and accuracy.</p>
+                </div>
+            </div>
+    
+            <!-- Flow 5: Parallel Agent Execution -->
+            <div class="flow-section">
+                <h2 class="flow-title">⚡ 5. Parallel Agent Execution</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As a system, I want to execute searches in parallel when possible to reduce latency.
+                </div>
+                
+                <h3 style="color: #2c3e50; margin: 20px 0 15px 0;">Scenario 1: Multiple SQL Agents</h3>
+                <div class="mermaid">
+flowchart TD
+    A[🔍 Execution Plan] --> B{Parallel Possible?}
+    B -- Yes --> C[⚡ Parallel Execution]
+    C --> D[🗃️ SQL Agent]
+    D --> E[📊 Billing DB]
+    D --> F[📊 Customer DB]
+    D --> G[📊 Transaction DB]
+    E --> H[💾 Aggregation]
+    F --> H
+    G --> H
+    B -- No --> I[🔄 Sequential Execution]
+    I --> H
+    
+    style C fill:#e8f5e8
+    style H fill:#f1f8e9
+                </div>
+                
+                <h3 style="color: #2c3e50; margin: 20px 0 15px 0;">Scenario 3: Mixed Configuration</h3>
+                <div class="mermaid">
+flowchart TD
+    A[🔍 Execution Plan] --> B{Parallel Possible?}
+    B -- Yes --> C[⚡ Parallel Execution]
+    C --> D[🗃️ SQL Agent]
+    C --> E[🔎 Vector Agent]
+    C --> F[🌐 API Agent]
+    D --> G[📊 SQL Database]
+    E --> H[🔍 Vector Database 1]
+    E --> I[🔍 Vector Database 2]
+    F --> J[🌐 External API]
+    G --> K[💾 Aggregation]
+    H --> K
+    I --> K
+    J --> K
+    B -- No --> L[🔄 Sequential Execution]
+    L --> K
+    
+    style C fill:#e8f5e8
+    style K fill:#f1f8e9
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">The system intelligently determines whether searches can be executed in parallel or must be sequential. When parallel execution is possible, multiple agents work simultaneously across different databases and services. A single agent can access multiple databases of the same type, or different specialized agents can work together.</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> Parallel execution reduces total search time by 2-3x compared to sequential processing, dramatically improving response times.</p>
+                </div>
+            </div>
+    
+            <!-- Flow 6: Synthesis and Action Generation -->
+            <div class="flow-section">
+                <h2 class="flow-title">🎯 6. Synthesis and Action Generation</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As an agent, I want ready-to-use solutions with action buttons to resolve issues quickly.
+                </div>
+                <div class="mermaid">
+flowchart TD
+    A[💾 Aggregated Data] --> B[🎯 Synthesis Agent]
+    B --> C[📊 Confidence Scoring]
+    C --> D{Score > Threshold?}
+    D -->|Yes| E[✅ Solution Generation]
+    D -->|No| F[❓ Request Clarification]
+    E --> G[🔘 Create Buttons]
+    G --> H[📺 Agent Display]
+    
+    style B fill:#fff3e0
+    style E fill:#e8f5e8
+    style G fill:#f1f8e9
+    style H fill:#e1f5fe
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">The Synthesis Agent combines all the data collected from different sources and generates intelligent solutions. It assigns confidence scores to each solution based on data quality and consistency. When confidence is high enough, it automatically creates clickable action buttons that agents can use to resolve issues instantly.</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> Agents get ready-to-use solutions with one-click actions, eliminating the need to manually navigate through multiple systems.</p>
+                </div>
+            </div>
+    
+            <!-- Flow 7: Action Execution -->
+            <div class="flow-section">
+                <h2 class="flow-title">✅ 7. Action Execution</h2>
+                <div class="user-story">
+                    <strong>User Story:</strong> As an agent, I want to resolve the problem with one click to improve customer experience.
+                </div>
+                <div class="mermaid">
+flowchart LR
+    A[🔘 Action Button Click] --> B[⚙️ Automatic Execution]
+    B --> C{Action Successful?}
+    C -->|Yes| D[✅ Confirmation]
+    C -->|No| E[❌ Error Handling]
+    D --> F[📞 Customer Notification]
+    E --> G[🔄 Alternative Action]
+    F --> H[📊 History Update]
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style D fill:#e8f5e8
+    style F fill:#f1f8e9
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                    <h4 style="margin-top: 0; color: #2c3e50;">How it works:</h4>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">When an agent clicks an action button, the system automatically executes the required operations across all relevant systems (databases, APIs, etc.). It handles success and error scenarios, provides immediate feedback, and updates all systems with the resolution. The customer is automatically notified of the resolution.</p>
+                    <p style="margin-bottom: 0; line-height: 1.6;"><strong>Key benefit:</strong> One-click resolution eliminates manual system navigation and reduces the risk of errors, providing faster and more reliable customer service.</p>
+                </div>
+            </div>
+    
+        </div>
+    </div>
+
+    <!-- HTML Definitions for Dynamic Diagrams -->
+    <div id="diagram-definitions">
+        <div id="diagram-flow-1" class="diagram-grid lr-flow">
+            <div class="node" data-id="A">📞 Incoming Call</div>
+            <div class="arrow" data-id="A-B">→</div>
+            <div class="node diamond" data-id="B"><span>Agent Available?</span></div>
+            <div class="arrow" data-id="B-C">→</div>
+            <div class="node" data-id="C">🚀 Trigger</div>
+            <div class="arrow" data-id="C-E">→</div>
+            <div class="node" data-id="E">✅ Activated</div>
+        </div>
+        
+        <div id="diagram-flow-2" class="complex-flow">
+            <div class="node" data-id="A">🎵 Audio Stream</div>
+            <div class="arrow" data-id="A-B">↓</div>
+            <div class="node" data-id="B">🎤 AI Transcription</div>
+            <div class="arrow" data-id="B-C">↓</div>
+            <div class="node" data-id="C">📝 Text Output</div>
+            <div class="fork-arrow-svg-container" data-id="C-fork">
+                <svg width="250" height="60" viewbox="0 0 250 60">
+                    <path data-id="path-left-2" d="M 125 0 V 20 C 125 30, 125 30, 115 30 H 40 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-2" d="M 125 20 C 125 30, 125 30, 135 30 H 210 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="parallel-group" data-id="D">
+                <div class="node" data-id="E">📺 Display</div>
+                <div class="node" data-id="F">📊 Analysis</div>
+            </div>
+        </div>
+        
+        <div id="diagram-flow-3" class="complex-flow">
+            <div class="node" data-id="A">📝 Text Input</div>
+            <div class="arrow" data-id="A-B">↓</div>
+            <div class="node" data-id="B">🧠 AI Analysis Engine</div>
+            <div class="arrow" data-id="B-C">↓</div>
+            <div class="node diamond" data-id="C"><span>Requirements Detected?</span></div>
+            <div class="fork-arrow-svg-container" data-id="C-fork">
+                <svg width="250" height="60" viewbox="0 0 250 60">
+                    <path data-id="path-left-3" d="M 125 0 V 20 C 125 30, 125 30, 115 30 H 40 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-3" d="M 125 20 C 125 30, 125 30, 135 30 H 210 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="parallel-group" data-id="D">
+                <div class="node" data-id="E">🎯 Classification</div>
+                <div class="node" data-id="F">📺 Display</div>
+            </div>
+        </div>
+        
+        <div id="diagram-flow-4" class="complex-flow">
+            <div class="node" data-id="A">🎯 Requirements</div>
+            <div class="arrow" data-id="A-B">↓</div>
+            <div class="node" data-id="B">🔍 Orchestrator</div>
+            <div class="fork-arrow-svg-container" data-id="B-fork" style="max-width: 420px;">
+                <svg width="380" height="60" viewbox="0 0 380 60">
+                    <path data-id="path-left-4" d="M 190 0 V 20 C 190 30, 190 30, 180 30 H 55 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-middle-4" d="M 190 0 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-4" d="M 190 0 V 20 C 190 30, 190 30, 200 30 H 325 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="parallel-group" data-id="D">
+                <div class="node" data-id="E">🗃️ SQL Agent</div>
+                <div class="node" data-id="F">🔎 Vector Agent</div>
+                <div class="node" data-id="G">🌐 API Agent</div>
+            </div>
+            <div class="fork-arrow-svg-container" data-id="D-fork" style="max-width: 420px; transform: rotate(180deg);">
+                <svg width="380" height="60" viewbox="0 0 380 60">
+                    <path data-id="path-left-out-4" d="M 190 0 V 20 C 190 30, 190 30, 180 30 H 55 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-middle-out-4" d="M 190 0 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-out-4" d="M 190 0 V 20 C 190 30, 190 30, 200 30 H 325 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="node" data-id="H">💾 Temporary Results</div>
+        </div>
+        
+        <div id="diagram-flow-5" class="complex-flow">
+            <div class="node" data-id="A">🔍 Execution Plan</div>
+            <div class="arrow" data-id="A-C">↓</div>
+            <div class="node" data-id="C">⚡ Parallel Execution</div>
+            <div class="fork-arrow-svg-container" data-id="C-fork" style="max-width: 420px;">
+                <svg width="380" height="60" viewbox="0 0 380 60">
+                    <path data-id="path-left-5" d="M 190 0 V 20 C 190 30, 190 30, 180 30 H 55 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-middle-5" d="M 190 0 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-5" d="M 190 0 V 20 C 190 30, 190 30, 200 30 H 325 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="parallel-group" data-id="D">
+                <div class="node" data-id="E">🗃️ SQL Agent</div>
+                <div class="node" data-id="F">🔎 Vector Agent</div>
+                <div class="node" data-id="G">🌐 API Agent</div>
+            </div>
+            <div class="fork-arrow-svg-container" data-id="D-fork" style="max-width: 420px; transform: rotate(180deg);">
+                <svg width="380" height="60" viewbox="0 0 380 60">
+                    <path data-id="path-left-out-5" d="M 190 0 V 20 C 190 30, 190 30, 180 30 H 55 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-middle-out-5" d="M 190 0 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-out-5" d="M 190 0 V 20 C 190 30, 190 30, 200 30 H 325 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="node" data-id="I">💾 Aggregation</div>
+        </div>
+        
+        <div id="diagram-flow-6" class="complex-flow">
+            <div class="node" data-id="A">💾 Aggregated Data</div>
+            <div class="arrow" data-id="A-B">↓</div>
+            <div class="node" data-id="B">🎯 Synthesis Agent</div>
+            <div class="fork-arrow-svg-container" data-id="B-fork">
+                <svg width="250" height="60" viewbox="0 0 250 60">
+                    <path data-id="path-left-6" d="M 125 0 V 20 C 125 30, 125 30, 115 30 H 40 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-6" d="M 125 20 C 125 30, 125 30, 135 30 H 210 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="parallel-group" data-id="C">
+                <div class="node" data-id="D">📊 Scoring</div>
+                <div class="node" data-id="E">🔘 Solution Generation</div>
+            </div>
+            <div class="fork-arrow-svg-container" data-id="C-fork" style="transform: rotate(180deg);">
+                <svg width="250" height="60" viewbox="0 0 250 60">
+                    <path data-id="path-left-out-6" d="M 125 0 V 20 C 125 30, 125 30, 115 30 H 40 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                    <path data-id="path-right-out-6" d="M 125 20 C 125 30, 125 30, 135 30 H 210 V 58" stroke="#666" fill="none" stroke-width="2" class="fork-path"></path>
+                </svg>
+            </div>
+            <div class="node" data-id="F">🔄 Final Solution</div>
+        </div>
+        
+        <div id="diagram-flow-7" class="diagram-grid lr-flow">
+            <div class="node" data-id="A">🔘 Button Click</div>
+            <div class="arrow" data-id="A-B">→</div>
+            <div class="node" data-id="B">⚙️ Auto Execution</div>
+            <div class="arrow" data-id="B-C">→</div>
+            <div class="node" data-id="C">✅ Confirmation</div>
+            <div class="arrow" data-id="C-D">→</div>
+            <div class="node" data-id="D">📊 History Update</div>
+        </div>
+    </div>
+
+    <script>
+        const scenarioSelector = document.getElementById('scenario-selector');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const playBtn = document.getElementById('play-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const diagramContainer = document.getElementById('dynamic-diagram-container');
+        const explanationEl = document.getElementById('system-explanation');
+        const transcriptEl = document.getElementById('transcript');
+        const needsEl = document.getElementById('detected-needs');
+        const solutionsEl = document.getElementById('solutions-panel');
+        const architectureSection = document.getElementById('architecture-section');
+
+        let currentScenario = null;
+        let currentStep = -1;
+        let isAutoMode = false;
+
+        const scenarios = {
+            airline: {
+                name: "airline", 
+                themeColor: "var(--airline-theme)", 
+                steps: [
+                    { 
+                        title: "1. System Activation", 
+                        diagramId: 'diagram-flow-1', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-E', 'E'], 
+                        agentAction: async () => typeTranscript("<span class='agent'>Agent:</span> AirFlow, good morning.<span class='cursor'></span>"),
+                        explanation: "The system automatically activates when a call is received."
+                    },
+                    { 
+                        title: "2. Real-time Transcription", 
+                        diagramId: 'diagram-flow-2', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-fork', 'path-left-2', 'path-right-2', 'E', 'F'], 
+                        agentAction: async () => typeTranscript("\n<span class='client'>Client:</span> Hello, I missed my connection to New York, flight HSJ123...<span class='cursor'></span>"),
+                        explanation: "Speech is converted to text in real-time using advanced AI."
+                    },
+                    { 
+                        title: "3. Intelligent Requirement Detection", 
+                        diagramId: 'diagram-flow-3', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-fork', 'path-left-3', 'path-right-3', 'E', 'F'], 
+                        agentAction: () => { 
+                            setTimeout(() => addNeed("Flight rebooking"), 300);
+                            setTimeout(() => addNeed("Luggage status"), 600);
+                            setTimeout(() => addNeed("Customer profile"), 900);
+                        },
+                        explanation: "AI analyzes content and automatically identifies customer requirements."
+                    },
+                    { 
+                        title: "4. Multi-Agent Orchestration", 
+                        diagramId: 'diagram-flow-4', 
+                        animation: ['A', 'A-B', 'B', 'B-fork', 'path-left-4', 'path-middle-4', 'path-right-4', 'E', 'F', 'G', 'D-fork', 'path-left-out-4', 'path-middle-out-4', 'path-right-out-4', 'H'], 
+                        explanation: "Orchestrator launches 3 specialized agents: SQL (flights), API (luggage), Vector (Platinum customer profile)."
+                    },
+                    { 
+                        title: "5. Parallel Processing", 
+                        diagramId: 'diagram-flow-5', 
+                        animation: ['A', 'A-C', 'C', 'C-fork', 'path-left-5', 'path-middle-5', 'path-right-5', 'E', 'F', 'G', 'D-fork', 'path-left-out-5', 'path-middle-out-5', 'path-right-out-5', 'I'], 
+                        explanation: "Three parallel searches (Flights, Luggage, Status) execute simultaneously for maximum speed."
+                    },
+                    { 
+                        title: "6. Intelligent Solution Synthesis", 
+                        diagramId: 'diagram-flow-6', 
+                        animation: ['A', 'A-B', 'B', 'B-fork', 'path-left-6', 'path-right-6', 'D', 'E', 'C-fork', 'path-left-out-6', 'path-right-out-6', 'F'], 
+                        agentAction: () => addSolution("Platinum customer. Seat available on HSJ456 (2h). Luggage transferred.", "Rebook & issue meal voucher"),
+                        explanation: "Results are aggregated and an optimal solution is generated using AI scoring."
+                    },
+                    { 
+                        title: "7. One-Click Resolution", 
+                        diagramId: 'diagram-flow-7', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-D', 'D'], 
+                        agentAction: async () => typeTranscript("\n<span class='agent'>Agent:</span> All set. You're on the 4pm flight, gate B34, your luggage follows. Enjoy your meal!<span class='cursor'></span>"),
+                        explanation: "Action is automatically executed and confirmed with system update."
+                    }
+                ]
+            },
+            insurance: {
+                name: "insurance", 
+                themeColor: "var(--insurance-theme)", 
+                steps: [
+                    { 
+                        title: "1. System Activation", 
+                        diagramId: 'diagram-flow-1', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-E', 'E'], 
+                        agentAction: async () => typeTranscript("<span class='agent'>Agent:</span> AllSecure, good morning.<span class='cursor'></span>"),
+                        explanation: "The system automatically activates when a call is received."
+                    },
+                    { 
+                        title: "2. Real-time Transcription", 
+                        diagramId: 'diagram-flow-2', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-fork', 'path-left-2', 'path-right-2', 'E', 'F'], 
+                        agentAction: async () => typeTranscript("\n<span class='client'>Client:</span> I need to report an accident. My car is immobilized.<span class='cursor'></span>"),
+                        explanation: "Speech is converted to text in real-time using advanced AI."
+                    },
+                    { 
+                        title: "3. Intelligent Requirement Detection", 
+                        diagramId: 'diagram-flow-3', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-fork', 'path-left-3', 'path-right-3', 'E', 'F'], 
+                        agentAction: () => { 
+                            setTimeout(() => addNeed("Claim processing"), 300);
+                            setTimeout(() => addNeed("Coverage verification"), 600);
+                            setTimeout(() => addNeed("Roadside assistance"), 900);
+                        },
+                        explanation: "AI analyzes content and automatically identifies customer requirements."
+                    },
+                    { 
+                        title: "4. Multi-Agent Orchestration", 
+                        diagramId: 'diagram-flow-4', 
+                        animation: ['A', 'A-B', 'B', 'B-fork', 'path-left-4', 'path-middle-4', 'path-right-4', 'E', 'F', 'G', 'D-fork', 'path-left-out-4', 'path-middle-out-4', 'path-right-out-4', 'H'], 
+                        explanation: "Orchestrator launches 2 specialized agents: SQL (policy) and API (nearest roadside partner)."
+                    },
+                    { 
+                        title: "5. Parallel Processing", 
+                        diagramId: 'diagram-flow-5', 
+                        animation: ['A', 'A-C', 'C', 'C-fork', 'path-left-5', 'path-middle-5', 'path-right-5', 'E', 'F', 'G', 'D-fork', 'path-left-out-5', 'path-middle-out-5', 'path-right-out-5', 'I'], 
+                        explanation: "Two parallel searches (Policy, Roadside) execute simultaneously."
+                    },
+                    { 
+                        title: "6. Intelligent Solution Synthesis", 
+                        diagramId: 'diagram-flow-6', 
+                        animation: ['A', 'A-B', 'B', 'B-fork', 'path-left-6', 'path-right-6', 'D', 'E', 'C-fork', 'path-left-out-6', 'path-right-out-6', 'F'], 
+                        agentAction: () => addSolution("Customer covered 'Comprehensive'. Partner 'Roadside Express' 5km away.", "Open claim & dispatch assistance"),
+                        explanation: "Results are aggregated and an optimal solution is generated using AI scoring."
+                    },
+                    { 
+                        title: "7. One-Click Resolution", 
+                        diagramId: 'diagram-flow-7', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-D', 'D'], 
+                        agentAction: async () => typeTranscript("\n<span class='agent'>Agent:</span> Noted. Claim opened, roadside assistance arrives in 15 minutes. You'll receive the number by SMS.<span class='cursor'></span>"),
+                        explanation: "Action is automatically executed and confirmed with system update."
+                    }
+                ]
+            },
+            fintech: {
+                name: "fintech", 
+                themeColor: "var(--fintech-theme)", 
+                steps: [
+                    { 
+                        title: "1. System Activation", 
+                        diagramId: 'diagram-flow-1', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-E', 'E'], 
+                        agentAction: async () => typeTranscript("<span class='agent'>Agent:</span> NeoBank Security.<span class='cursor'></span>"),
+                        explanation: "The system automatically activates when a call is received."
+                    },
+                    { 
+                        title: "2. Real-time Transcription", 
+                        diagramId: 'diagram-flow-2', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-fork', 'path-left-2', 'path-right-2', 'E', 'F'], 
+                        agentAction: async () => typeTranscript("\n<span class='client'>Client:</span> I see a payment of €800 that I didn't make!<span class='cursor'></span>"),
+                        explanation: "Speech is converted to text in real-time using advanced AI."
+                    },
+                    { 
+                        title: "3. Intelligent Requirement Detection", 
+                        diagramId: 'diagram-flow-3', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-fork', 'path-left-3', 'path-right-3', 'E', 'F'], 
+                        agentAction: () => { 
+                            setTimeout(() => addNeed("Transaction analysis"), 300);
+                            setTimeout(() => addNeed("Card blocking"), 600);
+                            setTimeout(() => addNeed("Dispute filing"), 900);
+                        },
+                        explanation: "AI analyzes content and automatically identifies customer requirements."
+                    },
+                    { 
+                        title: "4. Multi-Agent Orchestration", 
+                        diagramId: 'diagram-flow-4', 
+                        animation: ['A', 'A-B', 'B', 'B-fork', 'path-left-4', 'path-middle-4', 'path-right-4', 'E', 'F', 'G', 'D-fork', 'path-left-out-4', 'path-middle-out-4', 'path-right-out-4', 'H'], 
+                        explanation: "3 specialized agents launched: SQL (transaction), Vector (anomaly vs. patterns), API (geolocation)."
+                    },
+                    { 
+                        title: "5. Parallel Processing", 
+                        diagramId: 'diagram-flow-5', 
+                        animation: ['A', 'A-C', 'C', 'C-fork', 'path-left-5', 'path-middle-5', 'path-right-5', 'E', 'F', 'G', 'D-fork', 'path-left-out-5', 'path-middle-out-5', 'path-right-out-5', 'I'], 
+                        explanation: "Three parallel analyses (Transaction, Behavior, Geolocation) execute simultaneously."
+                    },
+                    { 
+                        title: "6. Intelligent Solution Synthesis", 
+                        diagramId: 'diagram-flow-6', 
+                        animation: ['A', 'A-B', 'B', 'B-fork', 'path-left-6', 'path-right-6', 'D', 'E', 'C-fork', 'path-left-out-6', 'path-right-out-6', 'F'], 
+                        agentAction: () => addSolution("Probable fraud (score 98%). Foreign IP, suspicious merchant.", "Block, dispute & refund"),
+                        explanation: "Results are aggregated and an optimal solution is generated using AI scoring."
+                    },
+                    { 
+                        title: "7. One-Click Resolution", 
+                        diagramId: 'diagram-flow-7', 
+                        animation: ['A', 'A-B', 'B', 'B-C', 'C', 'C-D', 'D'], 
+                        agentAction: async () => typeTranscript("\n<span class='agent'>Agent:</span> This is fraud. I've blocked the card and initiated the refund. A new card is on its way.<span class='cursor'></span>"),
+                        explanation: "Action is automatically executed and confirmed with system update."
+                    }
+                ]
+            }
+        };
+
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        const typeTranscript = async (text) => {
+            transcriptEl.querySelector('.cursor')?.remove();
+            let content = transcriptEl.innerHTML;
+            
+            for (let i = 0; i < text.length; i++) {
+                content += text[i];
+                transcriptEl.innerHTML = content;
+                transcriptEl.scrollTop = transcriptEl.scrollHeight;
+                
+                if (text[i] === '<') {
+                    const tagEnd = text.indexOf('>', i);
+                    if (tagEnd !== -1) { 
+                        content += text.substring(i + 1, tagEnd + 1); 
+                        i = tagEnd; 
+                        transcriptEl.innerHTML = content; 
+                    }
+                }
+                await sleep(20);
+            }
+        };
+
+        const addNeed = (text) => { 
+            const li = document.createElement('li'); 
+            li.textContent = text; 
+            needsEl.appendChild(li); 
+            setTimeout(() => li.classList.add('visible'), 100); 
+        };
+
+        const addSolution = (text, buttonText) => { 
+            const li = document.createElement('li'); 
+            li.innerHTML = `${text} <button class="solution-button ${currentScenario.name}">${buttonText}</button>`; 
+            solutionsEl.appendChild(li); 
+            setTimeout(() => li.classList.add('visible'), 100); 
+        };
+
+        const resetUI = () => {
+            currentStep = -1;
+            isAutoMode = false;
+            [transcriptEl, needsEl, solutionsEl, diagramContainer].forEach(el => el.innerHTML = "");
+            explanationEl.innerHTML = "Select a scenario and click 'Start Simulation'.";
+            explanationEl.style.background = 'linear-gradient(135deg, #ecf0f1, #d5dbdb)';
+            explanationEl.style.borderLeftColor = '#bdc3c7';
+            startBtn.disabled = false;
+            startBtn.textContent = 'Start Simulation';
+            startBtn.style.background = 'linear-gradient(135deg, var(--primary-color), #2980b9)';
+            startBtn.classList.remove('ready');
+            pauseBtn.disabled = true;
+            pauseBtn.classList.remove('running');
+            playBtn.disabled = true;
+            resetBtn.disabled = true;
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            scenarioSelector.disabled = false;
+        };
+
+        const loadScenario = (scenarioName) => {
+            if (!scenarioName) { 
+                currentScenario = null; 
+                resetUI(); 
+                startBtn.disabled = true;
+                startBtn.classList.remove('ready');
+                return; 
+            }
+            currentScenario = scenarios[scenarioName];
+            resetUI();
+            startBtn.disabled = false;
+            startBtn.classList.add('ready');
+            startBtn.style.background = `linear-gradient(135deg, ${currentScenario.themeColor}, ${currentScenario.themeColor}dd)`;
+        };
+
+        const animateDiagram = async (diagramId, animationSequence) => {
+            diagramContainer.innerHTML = '';
+            const diagramTemplate = document.getElementById(diagramId).cloneNode(true);
+            diagramContainer.appendChild(diagramTemplate);
+
+            for (let i = 0; i < animationSequence.length; i++) {
+                const id = animationSequence[i];
+                const el = diagramTemplate.querySelector(`[data-id="${id}"]`);
+                if (el) {
+                    // For path elements, we delay adding the 'visible' class slightly.
+                    // This forces the browser to register the initial state (stroke-dashoffset: 200)
+                    // before the final state (stroke-dashoffset: 0), ensuring the transition fires.
+                    if (el.classList.contains('fork-path')) {
+                        setTimeout(() => el.classList.add('visible'), 50);
+                    } else {
+                        el.classList.add('visible');
+                    }
+                    
+                    // Add pulse effect for nodes
+                    if (el.classList.contains('node')) {
+                        el.classList.add('pulse-animation');
+                        setTimeout(() => el.classList.remove('pulse-animation'), 1000);
+                    }
+                }
+                await sleep(400);
+            }
+        };
+
+        const showStep = async (stepIndex) => {
+            if (!currentScenario || stepIndex < 0 || stepIndex >= currentScenario.steps.length) return;
+            
+            currentStep = stepIndex;
+            const stepData = currentScenario.steps[stepIndex];
+
+            // Update explanation
+            const explanationTitle = `<strong>${stepData.title}</strong>`;
+            const explanationText = stepData.explanation ? `<p style="margin-top: 10px; opacity: 0.9;">${stepData.explanation}</p>` : "";
+            explanationEl.innerHTML = explanationTitle + explanationText;
+            explanationEl.style.background = `linear-gradient(135deg, ${currentScenario.themeColor}22, ${currentScenario.themeColor}11)`;
+            explanationEl.style.borderLeftColor = currentScenario.themeColor;
+
+            // Animate diagram
+            await animateDiagram(stepData.diagramId, stepData.animation);
+
+            // Run agent view action
+            if (stepData.agentAction) await stepData.agentAction();
+
+            // Update navigation buttons
+            prevBtn.disabled = stepIndex === 0;
+            nextBtn.disabled = stepIndex === currentScenario.steps.length - 1;
+        };
+
+        const nextStep = () => {
+            if (currentStep < currentScenario.steps.length - 1) {
+                showStep(currentStep + 1);
+            }
+        };
+
+        const prevStep = () => {
+            if (currentStep > 0) {
+                showStep(currentStep - 1);
+            }
+        };
+
+        const runFullScenario = async () => {
+            if (!currentScenario) return;
+            
+            isAutoMode = true;
+            startBtn.disabled = true;
+            startBtn.textContent = 'Simulation running...';
+            startBtn.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+            startBtn.classList.remove('ready');
+            pauseBtn.disabled = false;
+            pauseBtn.classList.add('running');
+            playBtn.disabled = true;
+            resetBtn.disabled = false;
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            scenarioSelector.disabled = true;
+
+            for (let i = 0; i < currentScenario.steps.length; i++) {
+                if (!isAutoMode) break; // Allow interruption
+                
+                await showStep(i);
+                
+                // Pause between steps
+                if (i < currentScenario.steps.length - 1) {
+                    await sleep(2000);
+                }
+            }
+            
+            if (isAutoMode) {
+                startBtn.textContent = 'Simulation completed';
+                startBtn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+                pauseBtn.classList.remove('running');
+                playBtn.disabled = true;
+            }
+        };
+
+        const runFullScenarioFromStep = async (startStep) => {
+            if (!currentScenario) return;
+            
+            for (let i = startStep; i < currentScenario.steps.length; i++) {
+                if (!isAutoMode) break; // Allow interruption
+                
+                await showStep(i);
+                
+                // Pause between steps
+                if (i < currentScenario.steps.length - 1) {
+                    await sleep(2000);
+                }
+            }
+            
+            if (isAutoMode) {
+                startBtn.textContent = 'Simulation completed';
+                startBtn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+                pauseBtn.classList.remove('running');
+                playBtn.disabled = true;
+            }
+        };
+
+        // Event listeners
+        scenarioSelector.addEventListener('change', (e) => loadScenario(e.target.value));
+        startBtn.addEventListener('click', () => runFullScenario());
+        pauseBtn.addEventListener('click', () => {
+            isAutoMode = false;
+            startBtn.disabled = true;
+            pauseBtn.disabled = true;
+            pauseBtn.classList.remove('running');
+            playBtn.disabled = false;
+            resetBtn.disabled = false;
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            scenarioSelector.disabled = true;
+        });
+        playBtn.addEventListener('click', () => {
+            isAutoMode = true;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            pauseBtn.classList.add('running');
+            playBtn.disabled = true;
+            resetBtn.disabled = false;
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            scenarioSelector.disabled = true;
+            
+            // Resume simulation from current step
+            runFullScenarioFromStep(currentStep + 1);
+        });
+        resetBtn.addEventListener('click', () => {
+            if (currentScenario) {
+                resetUI();
+                startBtn.disabled = false;
+                startBtn.classList.add('ready');
+                startBtn.style.background = `linear-gradient(135deg, ${currentScenario.themeColor}, ${currentScenario.themeColor}dd)`;
+            } else {
+                loadScenario(scenarioSelector.value);
+            }
+        });
+        prevBtn.addEventListener('click', prevStep);
+        nextBtn.addEventListener('click', nextStep);
+
+        // Initialize
+        resetUI();
+        
+        // Initialize Mermaid diagrams
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeCSS: `
+                .node rect { 
+                    fill: #fff; 
+                    stroke: #333; 
+                    stroke-width: 2px; 
+                    rx: 5px;
+                }
+                .edgePath .path { 
+                    stroke: #333; 
+                    stroke-width: 2px; 
+                }
+                .node .label {
+                    font-size: 14px;
+                    font-weight: 500;
+                }
+            `,
+            flowchart: {
+                nodeSpacing: 50,
+                rankSpacing: 80,
+                curve: 'basis'
+            }
+        });
+        
+        // Force render all Mermaid diagrams
+        mermaid.init();
+    </script>
+
+</body>
+</html> 
